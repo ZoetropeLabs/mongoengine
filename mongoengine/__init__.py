@@ -30,7 +30,7 @@ def get_version():
     """Return the VERSION as a string, e.g. for VERSION == (0, 10, 7),
     return '0.10.7'.
     """
-    return '.'.join(map(str, VERSION))
+    return '.'.join(map(str, VERSION)) + '-patch'
 
 
 __version__ = get_version()
