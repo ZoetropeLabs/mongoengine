@@ -72,7 +72,8 @@ class BaseQuerySet(object):
 
         # If inheritance is allowed, only return instances and instances of
         # subclasses of the class being used
-        if document._meta.get('allow_inheritance') is True:
+        if document._meta.get('allow_inheritance') and \
+                not document._meta.get("_is_magic_model"):
             if len(self._document._subclasses) == 1:
                 self._initial_query = {"_cls": self._document._subclasses[0]}
             else:

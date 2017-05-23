@@ -400,7 +400,7 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
         module = attrs.get('__module__')
         for exc in exceptions_to_merge:
             name = exc.__name__
-            parents = tuple(getattr(base, name) for base in flattened_bases
+            parents = tuple(getattr(base, name) for base in bases
                             if hasattr(base, name)) or (exc,)
             # Create new exception and set to new_class
             exception = type(name, parents, {'__module__': module})

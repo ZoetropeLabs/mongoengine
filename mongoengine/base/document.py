@@ -728,7 +728,10 @@ class BaseDocument(object):
             data = dict((k, v)
                         for k, v in data.iteritems() if k in cls._fields)
         obj = cls(__auto_convert=False, _created=created, __only_fields=only_fields, **data)
-        obj._changed_fields = changed_fields
+        # If the init method needs to make changes (to changed_fields) then it can't be
+        # reset afterwards. Hence the if statement here.
+        if not hasattr(obj, '_changed_fields'):
+            obj._changed_fields = changed_fields
         if not _auto_dereference:
             obj._fields = fields
 
