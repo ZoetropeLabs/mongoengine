@@ -1,20 +1,27 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path[0:0] = [""]
 import unittest
 
 from bson import DBRef, ObjectId
+from collections import OrderedDict
 
 from mongoengine import *
 from mongoengine.connection import get_db
 from mongoengine.context_managers import query_counter
+from mongoengine.python_support import IS_PYMONGO_3
+from mongoengine.base import TopLevelDocumentMetaclass
+if IS_PYMONGO_3:
+    from bson import CodecOptions
 
 
 class FieldTest(unittest.TestCase):
 
-    def setUp(self):
-        connect(db='mongoenginetest')
-        self.db = get_db()
+    @classmethod
+    def setUpClass(cls):
+        cls.db = connect(db='mongoenginetest')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.drop_database('mongoenginetest')
 
     def test_list_item_dereference(self):
         """Ensure that DBRef items in ListFields are dereferenced.
@@ -28,7 +35,7 @@ class FieldTest(unittest.TestCase):
         User.drop_collection()
         Group.drop_collection()
 
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             user = User(name='user %s' % i)
             user.save()
 
@@ -86,7 +93,7 @@ class FieldTest(unittest.TestCase):
         User.drop_collection()
         Group.drop_collection()
 
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             user = User(name='user %s' % i)
             user.save()
 
@@ -158,7 +165,7 @@ class FieldTest(unittest.TestCase):
         User.drop_collection()
         Group.drop_collection()
 
-        for i in xrange(1, 26):
+        for i in range(1, 26):
             user = User(name='user %s' % i)
             user.save()
 
@@ -304,6 +311,7 @@ class FieldTest(unittest.TestCase):
 
         User.drop_collection()
         Post.drop_collection()
+        SimpleList.drop_collection()
 
         u1 = User.objects.create(name='u1')
         u2 = User.objects.create(name='u2')
@@ -435,7 +443,7 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i)
             a.save()
 
@@ -526,7 +534,7 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i)
             a.save()
 
@@ -609,15 +617,15 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             user = User(name='user %s' % i)
             user.save()
             members.append(user)
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
         with query_counter() as q:
@@ -682,7 +690,7 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i)
             a.save()
 
@@ -694,9 +702,9 @@ class FieldTest(unittest.TestCase):
 
             members += [a, b, c]
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
         with query_counter() as q:
@@ -778,16 +786,16 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i)
             a.save()
 
             members += [a]
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
         with query_counter() as q:
@@ -861,7 +869,7 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i)
             a.save()
 
@@ -873,9 +881,9 @@ class FieldTest(unittest.TestCase):
 
             members += [a, b, c]
 
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
-        group = Group(members=dict([(str(u.id), u) for u in members]))
+        group = Group(members={str(u.id): u for u in members})
         group.save()
 
         with query_counter() as q:
@@ -1098,7 +1106,7 @@ class FieldTest(unittest.TestCase):
         User.drop_collection()
         Group.drop_collection()
 
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             User(name='user %s' % i).save()
 
         Group(name="Test", members=User.objects).save()
@@ -1127,7 +1135,7 @@ class FieldTest(unittest.TestCase):
         User.drop_collection()
         Group.drop_collection()
 
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             User(name='user %s' % i).save()
 
         Group(name="Test", members=User.objects).save()
@@ -1164,7 +1172,7 @@ class FieldTest(unittest.TestCase):
         Group.drop_collection()
 
         members = []
-        for i in xrange(1, 51):
+        for i in range(1, 51):
             a = UserA(name='User A %s' % i).save()
             b = UserB(name='User B %s' % i).save()
             c = UserC(name='User C %s' % i).save()
@@ -1283,6 +1291,71 @@ class FieldTest(unittest.TestCase):
             songs = [item.song for item in playlist.items]
 
             self.assertEqual(q, 2)
+
+    def test_dynamic_field_dereference(self):
+        class Merchandise(Document):
+            name = StringField()
+            price = IntField()
+
+        class Store(Document):
+            merchandises = DynamicField()
+
+        Merchandise.drop_collection()
+        Store.drop_collection()
+
+        merchandises = {
+            '#1': Merchandise(name='foo', price=100).save(),
+            '#2': Merchandise(name='bar', price=120).save(),
+            '#3': Merchandise(name='baz', price=110).save(),
+        }
+        Store(merchandises=merchandises).save()
+
+        store = Store.objects().first()
+        for obj in store.merchandises.values():
+            self.assertFalse(isinstance(obj, Merchandise))
+
+        store.select_related()
+        for obj in store.merchandises.values():
+            self.assertTrue(isinstance(obj, Merchandise))
+
+    def test_dynamic_field_dereference_with_ordering_guarantee_on_pymongo3(self):
+        # This is because 'codec_options' is supported on pymongo3 or later
+        if IS_PYMONGO_3:
+            class OrderedDocument(Document):
+                my_metaclass = TopLevelDocumentMetaclass
+                __metaclass__ = TopLevelDocumentMetaclass
+
+                @classmethod
+                def _get_collection(cls):
+                    collection = super(OrderedDocument, cls)._get_collection()
+                    opts = CodecOptions(document_class=OrderedDict)
+
+                    return collection.with_options(codec_options=opts)
+
+            class Merchandise(Document):
+                name = StringField()
+                price = IntField()
+
+            class Store(OrderedDocument):
+                merchandises = DynamicField(container_class=OrderedDict)
+
+            Merchandise.drop_collection()
+            Store.drop_collection()
+
+            merchandises = OrderedDict()
+            merchandises['#1'] = Merchandise(name='foo', price=100).save()
+            merchandises['#2'] = Merchandise(name='bar', price=120).save()
+            merchandises['#3'] = Merchandise(name='baz', price=110).save()
+
+            Store(merchandises=merchandises).save()
+
+            store = Store.objects().first()
+
+            store.select_related()
+
+            # confirms that the load data order is same with the one at storing
+            self.assertTrue(type(store.merchandises), OrderedDict)
+            self.assertEqual(','.join(store.merchandises.keys()), '#1,#2,#3')
 
 if __name__ == '__main__':
     unittest.main()
