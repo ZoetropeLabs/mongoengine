@@ -20,7 +20,7 @@ def get_document(name):
         compound_end = '.%s' % single_end
         possible_match = [k for k in _document_registry.keys()
                           if k.endswith(compound_end) or k == single_end]
-        if len(possible_match) == 1:
+        if possible_match:
             doc = _document_registry.get(possible_match.pop(), None)
     if not doc:
         raise NotRegistered("""
