@@ -21,7 +21,11 @@ def get_document(name):
         possible_match = [k for k in _document_registry.keys()
                           if k.endswith(compound_end) or k == single_end]
         if possible_match:
-            doc = _document_registry.get(possible_match.pop(), None)
+            try:
+                doc = _document_registry.get(next(i for i in possible_match if name in i), None)
+            except StopIteration:
+                doc = None
+
     if not doc:
         raise NotRegistered("""
             `%s` has not been registered in the document registry.
