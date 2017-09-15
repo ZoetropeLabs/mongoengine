@@ -651,8 +651,20 @@ class EmbeddedDocumentField(BaseField):
         """
         # Using isinstance also works for subclasses of self.document
         if not isinstance(value, self.document_type):
-            self.error('Invalid embedded document instance provided to an '
-                       'EmbeddedDocumentField')
+            failed = False
+
+            if isinstance(value, dict):
+                try:
+                    value = self.document_type(**value)
+                except TypeError:
+                    failed = True
+            else:
+                failed = True
+
+            if failed:
+                self.error('Invalid embedded document instance provided to an '
+                           'EmbeddedDocumentField')
+
         self.document_type.validate(value, clean)
 
     def lookup_member(self, member_name):
