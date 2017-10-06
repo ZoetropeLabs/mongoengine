@@ -120,7 +120,10 @@ class DeReference(object):
 
                             reference_map.setdefault(key, set()).update(refs)
             elif isinstance(item, DBRef):
-                reference_map.setdefault(get_document(item.cls), set()).add(item.id)
+                if hasattr(item, 'cls'):
+                    reference_map.setdefault(get_document(item.cls), set()).add(item.id)
+                else:
+                    reference_map.setdefault(item.collection, set()).add(item.id)
             elif isinstance(item, (dict, SON)) and '_ref' in item:
                 reference_map.setdefault(get_document(item['_cls']), set()).add(item['_ref'].id)
             elif isinstance(item, (dict, list, tuple)) and depth - 1 <= self.max_depth:
