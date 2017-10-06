@@ -105,7 +105,6 @@ class DeReference(object):
                         reference_map.setdefault(get_document(v['_cls']), set()).add(v['_ref'].id)
                     elif isinstance(v, (dict, list, tuple)) and depth <= self.max_depth:
                         field_cls = getattr(getattr(field, 'field', None), 'document_type', None)
-                        abstract = field_cls
                         references = self._find_references(v, depth)
                         for key, refs in references.iteritems():
                             if isinstance(key, (Document, TopLevelDocumentMetaclass)) and not key._meta.get('abstract',
@@ -116,7 +115,10 @@ class DeReference(object):
 
                             reference_map.setdefault(key, set()).update(refs)
             elif isinstance(item, DBRef):
-                reference_map.setdefault(item.collection, set()).add(item.id)
+                if hasattr(item, 'cls'):
+                    reference_map.setdefault(get_document(item.cls), set()).add(item.id)
+                else:
+                    reference_map.setdefault(item.collection, set()).add(item.id)
             elif isinstance(item, (dict, SON)) and '_ref' in item:
                 reference_map.setdefault(get_document(item['_cls']), set()).add(item['_ref'].id)
             elif isinstance(item, (dict, list, tuple)) and depth - 1 <= self.max_depth:
