@@ -15,6 +15,7 @@ language: python
 python:
 - 2.7
 - 3.5
+- 3.6
 - pypy
 
 env:
@@ -39,9 +40,15 @@ matrix:
     env: MONGODB=2.4 PYMONGO=3.0
   - python: 3.5
     env: MONGODB=3.0 PYMONGO=3.0
+  - python: 3.6
+    env: MONGODB=2.4 PYMONGO=3.0
+  - python: 3.6
+    env: MONGODB=3.0 PYMONGO=3.0
 
 before_install:
 - bash .install_mongodb_on_travis.sh
+- sleep 15  # https://docs.travis-ci.com/user/database-setup/#MongoDB-does-not-immediately-accept-connections
+- mongo --eval 'db.version();'
 
 install:
 - sudo apt-get install python-dev python3-dev libopenjpeg-dev zlib1g-dev libjpeg-turbo8-dev
@@ -90,7 +97,7 @@ deploy:
   distributions: "sdist bdist_wheel"
 
   # only deploy on tagged commits (aka GitHub releases) and only for the
-  # parent repo's builds running Python 2.7 along with dev PyMongo (we run
+  # parent repo's builds running Python 2.7 along with PyMongo v3.0 (we run
   # Travis against many different Python and PyMongo versions and we don't
   # want the deploy to occur multiple times).
   on:
