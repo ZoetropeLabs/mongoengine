@@ -202,7 +202,7 @@ class Document(BaseDocument):
                     )
             else:
                 cls._collection = db[collection_name]
-            if cls._meta.get('auto_create_index', True):
+            if cls._meta.get('auto_create_index', True) and not cls._meta.get("abstract", True):
                 cls.ensure_indexes()
         return cls._collection
 

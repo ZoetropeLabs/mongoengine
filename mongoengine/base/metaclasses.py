@@ -319,7 +319,14 @@ class TopLevelDocumentMetaclass(DocumentMetaclass):
                     not parent_doc_cls._meta.get('abstract', False)):
                 msg = 'Abstract document cannot have non-abstract base'
                 raise ValueError(msg)
-            return super_new(cls, name, bases, attrs)
+
+            new_class = super_new(cls, name, bases, attrs)
+
+            # Provide a default queryset unless exists or one has been set
+            if 'objects' not in dir(new_class):
+                new_class.objects = QuerySetManager()
+
+            return new_class
 
         # Merge base class metas.
         # Uses a special MetaDict that handles various merging rules
