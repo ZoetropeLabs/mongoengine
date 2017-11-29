@@ -1562,9 +1562,9 @@ class BaseQuerySet(object):
         if self._ordering:
             # explicit ordering
             self._cursor_obj.sort(self._ordering)
-        elif self._ordering is None and self._document._meta['ordering']:
+        elif self._ordering is None and self._document._meta.get('ordering'):
             # default ordering
-            order = self._get_order_by(self._document._meta['ordering'])
+            order = self._get_order_by(self._document._meta.get('ordering'))
             self._cursor_obj.sort(order)
 
         if self._limit is not None:

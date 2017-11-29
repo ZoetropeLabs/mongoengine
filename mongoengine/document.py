@@ -195,7 +195,7 @@ class Document(BaseDocument):
 
             # Ensure indexes on the collection unless auto_create_index was
             # set to False.
-            if cls._meta.get('auto_create_index', True):
+            if cls._meta.get('auto_create_index', True) and not cls._meta.get("abstract", True):
                 cls.ensure_indexes()
 
         return cls._collection
