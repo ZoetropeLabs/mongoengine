@@ -192,9 +192,6 @@ class Document(BaseDocument):
                 db = cls._get_db()
                 collection_name = cls._get_collection_name()
                 cls._collection = db[collection_name]
-
-            # Ensure indexes on the collection unless auto_create_index was
-            # set to False.
             if cls._meta.get('auto_create_index', True) and not cls._meta.get("abstract", True):
                 cls.ensure_indexes()
 
