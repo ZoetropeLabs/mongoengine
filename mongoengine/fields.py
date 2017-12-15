@@ -1048,6 +1048,15 @@ class ReferenceField(BaseField):
                 self.document_type_obj = self.owner_document
             else:
                 self.document_type_obj = get_document(self.document_type_obj)
+
+        try:
+            d = self.document_type_obj()
+        except KeyError:
+            pass
+        else:
+            if type(d) != self.document_type_obj:
+                self.document_type_obj = type(d)
+
         return self.document_type_obj
 
     def __get__(self, instance, owner):
