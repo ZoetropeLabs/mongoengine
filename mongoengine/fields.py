@@ -1049,13 +1049,13 @@ class ReferenceField(BaseField):
             else:
                 self.document_type_obj = get_document(self.document_type_obj)
 
-        try:
-            d = self.document_type_obj()
-        except KeyError:
-            pass
-        else:
-            if type(d) != self.document_type_obj:
-                self.document_type_obj = type(d)
+        # try:
+        #     d = self.document_type_obj()
+        # except KeyError:
+        #     pass
+        # else:
+        #     if type(d) != self.document_type_obj:
+        #         self.document_type_obj = type(d)
 
         return self.document_type_obj
 
