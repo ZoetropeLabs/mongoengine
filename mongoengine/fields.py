@@ -1131,9 +1131,11 @@ class ReferenceField(BaseField):
         return self.to_mongo(value)
 
     def validate(self, value):
-
         if not isinstance(value, (self.document_type, LazyReference, DBRef, ObjectId)):
-            self.error('A ReferenceField only accepts DBRef, LazyReference, ObjectId or documents')
+            if isinstance(value, Document):
+                self.error('Document {} is not of the type that this referencefield accepts ({})'.format(value, self.document_type))
+            else:
+                self.error('A ReferenceField only accepts DBRef, LazyReference, ObjectId or documents')
 
         if isinstance(value, Document) and value.id is None:
             self.error('You can only reference documents once they have been '
@@ -1246,7 +1248,7 @@ class CachedReferenceField(BaseField):
                 self.error('You can only reference documents once they have'
                            ' been saved to the database')
             cls = document
-            
+
             id_field_name = cls._meta['id_field']
             id_field = cls._fields[id_field_name]
 
@@ -1271,7 +1273,7 @@ class CachedReferenceField(BaseField):
                 self.error('You can only reference documents once they have'
                            ' been saved to the database')
             return {'_id': value.pk}
-        
+
         super(CachedReferenceField, self).prepare_query_value(op, value)
         return self.to_mongo(value)
 
