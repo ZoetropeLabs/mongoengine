@@ -356,12 +356,13 @@ class ComplexBaseField(BaseField):
 
     def to_mongo(self, value, use_db_field=True, fields=None):
         """Convert a Python type to a MongoDB-compatible type."""
-        Document = _import_class('Document')
-        EmbeddedDocument = _import_class('EmbeddedDocument')
-        GenericReferenceField = _import_class('GenericReferenceField')
 
         if isinstance(value, six.string_types):
             return value
+
+        Document = _import_class('Document')
+        EmbeddedDocument = _import_class('EmbeddedDocument')
+        GenericReferenceField = _import_class('GenericReferenceField')
 
         if hasattr(value, 'to_mongo'):
             if isinstance(value, Document):
@@ -373,52 +374,60 @@ class ComplexBaseField(BaseField):
                 val['_cls'] = cls.__name__
             return val
 
-        is_list = False
+        def _getconved(v):
+            """Try to convert something from mongoengine to pymongo"""
+            if isinstance(v, Document):
+                # We need the id from the saved object to create the DBRef
+                if v.pk is None:
+                    self.error('You can only reference documents once they'
+                               ' have been saved to the database')
+
+                # If its a document that is not inheritable it won't have
+                # any _cls data so make it a generic reference allows
+                # us to dereference
+                meta = getattr(v, '_meta', {})
+                allow_inheritance = meta.get('allow_inheritance')
+                if not allow_inheritance and not self.field:
+                    return GenericReferenceField().to_mongo(v)
+                else:
+                    collection = v._get_collection_name()
+                    return DBRef(collection, v.pk)
+            elif hasattr(v, 'to_mongo'):
+                cls = v.__class__
+                val = v.to_mongo(use_db_field, fields)
+                # If it's a document that is not inherited add _cls
+                if isinstance(v, (Document, EmbeddedDocument)):
+                    val['_cls'] = cls.__name__
+                return val
+            else:
+                return self.to_mongo(v, use_db_field, fields)
+
         if not hasattr(value, 'items'):
             try:
-                is_list = True
-                value = {k: v for k, v in enumerate(value)}
+                iter(value)
             except TypeError:  # Not iterable return the value
                 return value
 
-        if self.field:
-            value_dict = {
-                key: self.field._to_mongo_safe_call(item, use_db_field, fields)
-                for key, item in value.iteritems()
-            }
+            if self.field:
+                value_list = [
+                    self.field._to_mongo_safe_call(item, use_db_field, fields)
+                    for item in value
+                ]
+            else:
+                value_list = [_getconved(item) for item in value]
+
+            return value_list
         else:
-            value_dict = {}
-            for k, v in value.iteritems():
-                if isinstance(v, Document):
-                    # We need the id from the saved object to create the DBRef
-                    if v.pk is None:
-                        self.error('You can only reference documents once they'
-                                   ' have been saved to the database')
+            # Is dict
+            if self.field:
+                value_dict = {
+                    key: self.field._to_mongo_safe_call(item, use_db_field, fields)
+                    for key, item in value.iteritems()
+                }
+            else:
+                value_dict = {k: _getconved(v) for k, v in value.items()}
 
-                    # If its a document that is not inheritable it won't have
-                    # any _cls data so make it a generic reference allows
-                    # us to dereference
-                    meta = getattr(v, '_meta', {})
-                    allow_inheritance = meta.get('allow_inheritance')
-                    if not allow_inheritance and not self.field:
-                        value_dict[k] = GenericReferenceField().to_mongo(v)
-                    else:
-                        collection = v._get_collection_name()
-                        value_dict[k] = DBRef(collection, v.pk)
-                elif hasattr(v, 'to_mongo'):
-                    cls = v.__class__
-                    val = v.to_mongo(use_db_field, fields)
-                    # If it's a document that is not inherited add _cls
-                    if isinstance(v, (Document, EmbeddedDocument)):
-                        val['_cls'] = cls.__name__
-                    value_dict[k] = val
-                else:
-                    value_dict[k] = self.to_mongo(v, use_db_field, fields)
-
-        if is_list:  # Convert back to a list
-            return [v for _, v in sorted(value_dict.items(),
-                                         key=operator.itemgetter(0))]
-        return value_dict
+            return value_dict
 
     def validate(self, value):
         """If field is provided ensure the value is valid."""
