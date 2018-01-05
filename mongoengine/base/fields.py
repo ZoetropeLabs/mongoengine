@@ -311,38 +311,48 @@ class ComplexBaseField(BaseField):
         if hasattr(value, 'to_python'):
             return value.to_python()
 
-        is_list = False
+        Document = _import_class('Document')
+
+        def _getconved(v):
+            """Try to convert something from pymongo to mongoengine"""
+            if isinstance(v, Document):
+                # We need the id from the saved object to create the DBRef
+                if v.pk is None:
+                    self.error('You can only reference documents once they'
+                               ' have been saved to the database')
+                collection = v._get_collection_name()
+                return DBRef(collection, v.pk)
+            elif hasattr(v, 'to_python'):
+                return v.to_python()
+            else:
+                return self.to_python(v)
+
         if not hasattr(value, 'items'):
             try:
-                is_list = True
-                value = {k: v for k, v in enumerate(value)}
+                iter(value)
             except TypeError:  # Not iterable return the value
                 return value
 
-        if self.field:
-            self.field._auto_dereference = self._auto_dereference
-            value_dict = {key: self.field.to_python(item)
-                          for key, item in value.items()}
-        else:
-            Document = _import_class('Document')
-            value_dict = {}
-            for k, v in value.items():
-                if isinstance(v, Document):
-                    # We need the id from the saved object to create the DBRef
-                    if v.pk is None:
-                        self.error('You can only reference documents once they'
-                                   ' have been saved to the database')
-                    collection = v._get_collection_name()
-                    value_dict[k] = DBRef(collection, v.pk)
-                elif hasattr(v, 'to_python'):
-                    value_dict[k] = v.to_python()
-                else:
-                    value_dict[k] = self.to_python(v)
+            # Is list
+            # would returning generators work?
+            if self.field:
+                self.field._auto_dereference = self._auto_dereference
+                # value_list = (self.field.to_python(item) for item in value)
+                value_list = [self.field.to_python(item) for item in value]
+            else:
+                # value_list = (_getconved(item) for item in value)
+                value_list = [_getconved(item) for item in value]
 
-        if is_list:  # Convert back to a list
-            return [v for _, v in sorted(value_dict.items(),
-                                         key=operator.itemgetter(0))]
-        return value_dict
+            return value_list
+        else:
+            # Is dict
+            if self.field:
+                self.field._auto_dereference = self._auto_dereference
+                value_dict = {key: self.field.to_python(item) for key, item in value.items()}
+            else:
+                value_dict = {k: _getconved(v) for k, v in value.items()}
+
+            return value_dict
 
     def to_mongo(self, value, use_db_field=True, fields=None):
         """Convert a Python type to a MongoDB-compatible type."""
