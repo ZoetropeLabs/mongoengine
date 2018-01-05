@@ -225,6 +225,15 @@ class EmbeddedDocumentList(BaseList):
             return embedded_docs
         return [doc for doc in embedded_docs if cls.__match_all(doc, kwargs)]
 
+    def _in_list(self, **kwargs):
+        """Iterate over all data but early exit if we find it
+
+        a lot quick than doing the whole list every time we want to find an item"""
+        cls = type(self)
+        for i in (doc for doc in self if cls.__match_all(doc, kwargs)):
+            return True
+        return False
+
     def __init__(self, list_items, instance, name):
         super(EmbeddedDocumentList, self).__init__(list_items, instance, name)
         self._instance = instance
