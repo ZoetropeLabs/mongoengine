@@ -631,9 +631,12 @@ class EmbeddedDocumentField(BaseField):
             else:
                 self.document_type_obj = get_document(self.document_type_obj)
 
-        d = self.document_type_obj()
-        if type(d) != self.document_type_obj:
-            self.document_type_obj = type(d)
+        bases = self.document_type_obj._get_bases(self.document_type_obj.__bases__)
+        is_modelbase = any("ModelBase" in b.__name__ for b in bases)
+        if is_modelbase:
+            d = self.document_type_obj()
+            if type(d) != self.document_type_obj:
+                self.document_type_obj = type(d)
 
         return self.document_type_obj
 
