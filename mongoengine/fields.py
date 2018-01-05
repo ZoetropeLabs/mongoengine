@@ -621,6 +621,15 @@ class EmbeddedDocumentField(BaseField):
                        'EmbeddedDocumentField')
 
         self.document_type_obj = document_type
+
+        if isinstance(self.document_type_obj, six.string_types):
+            if self.document_type_obj == RECURSIVE_REFERENCE_CONSTANT:
+                self.document_type_obj = self.owner_document
+            else:
+                self.document_type_obj = get_document(self.document_type_obj)
+        bases = self.document_type_obj._get_bases(self.document_type_obj.__bases__)
+        self._needs_checking = any("ModelBase" in b.__name__ for b in bases)
+
         super(EmbeddedDocumentField, self).__init__(**kwargs)
 
     @property
@@ -631,9 +640,7 @@ class EmbeddedDocumentField(BaseField):
             else:
                 self.document_type_obj = get_document(self.document_type_obj)
 
-        bases = self.document_type_obj._get_bases(self.document_type_obj.__bases__)
-        is_modelbase = any("ModelBase" in b.__name__ for b in bases)
-        if is_modelbase:
+        if self._needs_checking:
             d = self.document_type_obj()
             if type(d) != self.document_type_obj:
                 self.document_type_obj = type(d)
