@@ -228,10 +228,23 @@ class EmbeddedDocumentList(BaseList):
     def _in_list(self, **kwargs):
         """Iterate over all data but early exit if we find it
 
-        a lot quick than doing the whole list every time we want to find an item"""
+        a lot quick than doing the whole list every time we want to find an
+        item. range is done in reverse because if we do want to find a
+        duplicate, it's probably going to be nearer the end of the list
+        """
         cls = type(self)
-        for i in (doc for doc in self if cls.__match_all(doc, kwargs)):
-            return True
+
+        for i in six.moves.range(self.__len__())[::-1]:
+            # This is the 'proper' way to do it, but on every access this
+            # incurs an isinstance() check as well as a lot of other stuff we
+            # don't need.
+            # if cls.__match_all(self[i], kwargs):
+
+            # Doing it like this is a bit horrible but it makes it go about
+            # twice as fast
+            if cls.__match_all(list.__getitem__(self, i), kwargs):
+                return True
+
         return False
 
     def __init__(self, list_items, instance, name):
