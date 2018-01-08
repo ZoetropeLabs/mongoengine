@@ -4379,6 +4379,51 @@ class CachedReferenceFieldTest(MongoDBTestCase):
         self.assertEqual(SocialData.objects(person__group=g2).count(), 1)
         self.assertEqual(SocialData.objects(person__group=g2).first(), s2)
 
+    def test_cached_reference_field_push_with_fields(self):
+        class Product(Document):
+            name = StringField()
+
+        Product.drop_collection()
+
+        class Basket(Document):
+            products = ListField(CachedReferenceField(Product, fields=['name']))
+
+        Basket.drop_collection()
+        product1 = Product(name='abc').save()
+        product2 = Product(name='def').save()
+        basket = Basket(products=[product1]).save()
+        self.assertEqual(
+            Basket.objects._collection.find_one(),
+            {
+                '_id': basket.pk,
+                'products': [
+                    {
+                        '_id': product1.pk,
+                        'name': product1.name
+                    }
+                ]
+            }
+        )
+        # push to list
+        basket.update(push__products=product2)
+        basket.reload()
+        self.assertEqual(
+            Basket.objects._collection.find_one(),
+            {
+                '_id': basket.pk,
+                'products': [
+                    {
+                        '_id': product1.pk,
+                        'name': product1.name
+                    },
+                    {
+                        '_id': product2.pk,
+                        'name': product2.name
+                    }
+                ]
+            }
+        )
+
     def test_cached_reference_field_update_all(self):
         class Person(Document):
             TYPES = (
@@ -4871,6 +4916,48 @@ class LazyReferenceFieldTest(MongoDBTestCase):
         self.assertNotEqual(animal, other_animalref)
         self.assertNotEqual(other_animalref, animal)
 
+    def test_lazy_reference_embedded(self):
+        class Animal(Document):
+            name = StringField()
+            tag = StringField()
+
+        class EmbeddedOcurrence(EmbeddedDocument):
+            in_list = ListField(LazyReferenceField(Animal))
+            direct = LazyReferenceField(Animal)
+
+        class Ocurrence(Document):
+            in_list = ListField(LazyReferenceField(Animal))
+            in_embedded = EmbeddedDocumentField(EmbeddedOcurrence)
+            direct = LazyReferenceField(Animal)
+
+        Animal.drop_collection()
+        Ocurrence.drop_collection()
+
+        animal1 = Animal('doggo').save()
+        animal2 = Animal('cheeta').save()
+
+        def check_fields_type(occ):
+            self.assertIsInstance(occ.direct, LazyReference)
+            for elem in occ.in_list:
+                self.assertIsInstance(elem, LazyReference)
+            self.assertIsInstance(occ.in_embedded.direct, LazyReference)
+            for elem in occ.in_embedded.in_list:
+                self.assertIsInstance(elem, LazyReference)
+
+        occ = Ocurrence(
+            in_list=[animal1, animal2],
+            in_embedded={'in_list': [animal1, animal2], 'direct': animal1},
+            direct=animal1
+        ).save()
+        check_fields_type(occ)
+        occ.reload()
+        check_fields_type(occ)
+        occ.direct = animal1.id
+        occ.in_list = [animal1.id, animal2.id]
+        occ.in_embedded.direct = animal1.id
+        occ.in_embedded.in_list = [animal1.id, animal2.id]
+        check_fields_type(occ)
+
 
 class GenericLazyReferenceFieldTest(MongoDBTestCase):
     def test_generic_lazy_reference_simple(self):
@@ -5050,6 +5137,50 @@ class GenericLazyReferenceFieldTest(MongoDBTestCase):
         Ocurrence(person='foo').save()
         p = Ocurrence.objects.get()
         self.assertIs(p.animal, None)
+
+    def test_generic_lazy_reference_embedded(self):
+        class Animal(Document):
+            name = StringField()
+            tag = StringField()
+
+        class EmbeddedOcurrence(EmbeddedDocument):
+            in_list = ListField(GenericLazyReferenceField())
+            direct = GenericLazyReferenceField()
+
+        class Ocurrence(Document):
+            in_list = ListField(GenericLazyReferenceField())
+            in_embedded = EmbeddedDocumentField(EmbeddedOcurrence)
+            direct = GenericLazyReferenceField()
+
+        Animal.drop_collection()
+        Ocurrence.drop_collection()
+
+        animal1 = Animal('doggo').save()
+        animal2 = Animal('cheeta').save()
+
+        def check_fields_type(occ):
+            self.assertIsInstance(occ.direct, LazyReference)
+            for elem in occ.in_list:
+                self.assertIsInstance(elem, LazyReference)
+            self.assertIsInstance(occ.in_embedded.direct, LazyReference)
+            for elem in occ.in_embedded.in_list:
+                self.assertIsInstance(elem, LazyReference)
+
+        occ = Ocurrence(
+            in_list=[animal1, animal2],
+            in_embedded={'in_list': [animal1, animal2], 'direct': animal1},
+            direct=animal1
+        ).save()
+        check_fields_type(occ)
+        occ.reload()
+        check_fields_type(occ)
+        animal1_ref = {'_cls': 'Animal', '_ref': DBRef(animal1._get_collection_name(), animal1.pk)}
+        animal2_ref = {'_cls': 'Animal', '_ref': DBRef(animal2._get_collection_name(), animal2.pk)}
+        occ.direct = animal1_ref
+        occ.in_list = [animal1_ref, animal2_ref]
+        occ.in_embedded.direct = animal1_ref
+        occ.in_embedded.in_list = [animal1_ref, animal2_ref]
+        check_fields_type(occ)
 
 
 if __name__ == '__main__':

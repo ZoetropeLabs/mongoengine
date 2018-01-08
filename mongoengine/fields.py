@@ -28,6 +28,7 @@ except ImportError:
 from mongoengine.base import (BaseDocument, BaseField, ComplexBaseField,
                               GeoJsonBaseField, LazyReference, ObjectIdField,
                               get_document)
+from mongoengine.common import _import_class
 from mongoengine.connection import DEFAULT_CONNECTION_NAME, get_db
 from mongoengine.document import Document, EmbeddedDocument
 from mongoengine.errors import DoesNotExist, InvalidQueryError, ValidationError
@@ -715,6 +716,11 @@ class GenericEmbeddedDocumentField(BaseField):
         return value
 
     def validate(self, value, clean=True):
+        if self.choices and isinstance(value, SON):
+            for choice in self.choices:
+                if value['_cls'] == choice._class_name:
+                    return True
+
         if not isinstance(value, EmbeddedDocument):
             self.error('Invalid embedded document instance provided to an '
                        'GenericEmbeddedDocumentField')
@@ -732,7 +738,6 @@ class GenericEmbeddedDocumentField(BaseField):
     def to_mongo(self, document, use_db_field=True, fields=None):
         if document is None:
             return None
-
         data = document.to_mongo(use_db_field, fields)
         if '_cls' not in data:
             data['_cls'] = document._class_name
@@ -815,6 +820,17 @@ class ListField(ComplexBaseField):
         self.field = field
         kwargs.setdefault('default', lambda: [])
         super(ListField, self).__init__(**kwargs)
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            # Document class being used rather than a document object
+            return self
+        value = instance._data.get(self.name)
+        LazyReferenceField = _import_class('LazyReferenceField')
+        GenericLazyReferenceField = _import_class('GenericLazyReferenceField')
+        if isinstance(self.field, (LazyReferenceField, GenericLazyReferenceField)) and value:
+            instance._data[self.name] = [self.field.build_lazyref(x) for x in value]
+        return super(ListField, self).__get__(instance, owner)
 
     def validate(self, value):
         """Make sure that a list of valid fields is being used."""
@@ -1282,7 +1298,11 @@ class CachedReferenceField(BaseField):
             if value.pk is None:
                 self.error('You can only reference documents once they have'
                            ' been saved to the database')
-            return {'_id': value.pk}
+            value_dict = {'_id': value.pk}
+            for field in self.fields:
+                value_dict.update({field: value[field]})
+
+            return value_dict
 
         super(CachedReferenceField, self).prepare_query_value(op, value)
         return self.to_mongo(value)
@@ -2250,17 +2270,10 @@ class LazyReferenceField(BaseField):
                 self.document_type_obj = get_document(self.document_type_obj)
         return self.document_type_obj
 
-    def __get__(self, instance, owner):
-        """Descriptor to allow lazy dereferencing."""
-        if instance is None:
-            # Document class being used rather than a document object
-            return self
-
-        value = instance._data.get(self.name)
+    def build_lazyref(self, value):
         if isinstance(value, LazyReference):
             if value.passthrough != self.passthrough:
-                instance._data[self.name] = LazyReference(
-                    value.document_type, value.pk, passthrough=self.passthrough)
+                value = LazyReference(value.document_type, value.pk, passthrough=self.passthrough)
         elif value is not None:
             if isinstance(value, self.document_type):
                 value = LazyReference(self.document_type, value.pk, passthrough=self.passthrough)
@@ -2269,6 +2282,16 @@ class LazyReferenceField(BaseField):
             else:
                 # value is the primary key of the referenced document
                 value = LazyReference(self.document_type, value, passthrough=self.passthrough)
+        return value
+
+    def __get__(self, instance, owner):
+        """Descriptor to allow lazy dereferencing."""
+        if instance is None:
+            # Document class being used rather than a document object
+            return self
+
+        value = self.build_lazyref(instance._data.get(self.name))
+        if value:
             instance._data[self.name] = value
 
         return super(LazyReferenceField, self).__get__(instance, owner)
@@ -2293,7 +2316,7 @@ class LazyReferenceField(BaseField):
 
     def validate(self, value):
         if isinstance(value, LazyReference):
-            if not issubclass(value.document_type, self.document_type):
+            if value.collection != self.document_type._get_collection_name():
                 self.error('Reference must be on a `%s` document.' % self.document_type)
             pk = value.pk
         elif isinstance(value, self.document_type):
@@ -2353,23 +2376,26 @@ class GenericLazyReferenceField(GenericReferenceField):
 
     def _validate_choices(self, value):
         if isinstance(value, LazyReference):
-            value = value.document_type
+            value = value.document_type._class_name
         super(GenericLazyReferenceField, self)._validate_choices(value)
 
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-
-        value = instance._data.get(self.name)
+    def build_lazyref(self, value):
         if isinstance(value, LazyReference):
             if value.passthrough != self.passthrough:
-                instance._data[self.name] = LazyReference(
-                    value.document_type, value.pk, passthrough=self.passthrough)
+                value = LazyReference(value.document_type, value.pk, passthrough=self.passthrough)
         elif value is not None:
             if isinstance(value, (dict, SON)):
                 value = LazyReference(get_document(value['_cls']), value['_ref'].id, passthrough=self.passthrough)
             elif isinstance(value, Document):
                 value = LazyReference(type(value), value.pk, passthrough=self.passthrough)
+        return value
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+
+        value = self.build_lazyref(instance._data.get(self.name))
+        if value:
             instance._data[self.name] = value
 
         return super(GenericLazyReferenceField, self).__get__(instance, owner)
@@ -2387,7 +2413,7 @@ class GenericLazyReferenceField(GenericReferenceField):
         if isinstance(document, LazyReference):
             return SON((
                 ('_cls', document.document_type._class_name),
-                ('_ref', document)
+                ('_ref', DBRef(document.document_type._get_collection_name(), document.pk))
             ))
         else:
             return super(GenericLazyReferenceField, self).to_mongo(document)

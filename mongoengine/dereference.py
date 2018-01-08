@@ -3,6 +3,7 @@ import six
 
 from mongoengine.base import (BaseDict, BaseList, EmbeddedDocumentList,
                               TopLevelDocumentMetaclass, get_document)
+from mongoengine.base.datastructures import LazyReference
 from mongoengine.connection import get_db
 from mongoengine.document import Document, EmbeddedDocument
 from mongoengine.fields import DictField, ListField, MapField, ReferenceField
@@ -99,7 +100,10 @@ class DeReference(object):
             if isinstance(item, (Document, EmbeddedDocument)):
                 for field_name, field in item._fields.iteritems():
                     v = item._data.get(field_name, None)
-                    if isinstance(v, DBRef):
+                    if isinstance(v, LazyReference):
+                        # LazyReference inherits DBRef but should not be dereferenced here !
+                        continue
+                    elif isinstance(v, DBRef):
                         if hasattr(v, 'cls'):
                             reference_map.setdefault(get_document(v.cls), set()).add(v.id)
                         else:
@@ -108,7 +112,6 @@ class DeReference(object):
                         reference_map.setdefault(get_document(v['_cls']), set()).add(v['_ref'].id)
                     elif isinstance(v, (dict, list, tuple)) and depth <= self.max_depth:
                         field_cls = getattr(getattr(field, 'field', None), 'document_type', None)
-                        abstract = field_cls
                         references = self._find_references(v, depth)
                         for key, refs in references.iteritems():
                             if isinstance(key, (Document, TopLevelDocumentMetaclass)) and not key._meta.get('abstract',
@@ -118,6 +121,9 @@ class DeReference(object):
                                 key = field_cls
 
                             reference_map.setdefault(key, set()).update(refs)
+            elif isinstance(item, LazyReference):
+                # LazyReference inherits DBRef but should not be dereferenced here !
+                continue
             elif isinstance(item, DBRef):
                 if hasattr(item, 'cls'):
                     reference_map.setdefault(get_document(item.cls), set()).add(item.id)
