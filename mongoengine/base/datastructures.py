@@ -214,8 +214,16 @@ class EmbeddedDocumentList(BaseList):
         """
         for key, expected_value in kwargs.items():
             doc_val = getattr(embedded_doc, key)
-            if doc_val != expected_value and six.text_type(doc_val) != expected_value:
-                return False
+            if isinstance(expected_value, six.text_type):
+                # If the expected value is not a string then converting the
+                # doc_val to a string just wastes a lot of time
+                if doc_val != expected_value and \
+                six.text_type(doc_val) != expected_value:
+                    return False
+            else:
+                if doc_val != expected_value:
+                    return False
+
         return True
 
     @classmethod
