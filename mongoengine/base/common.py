@@ -37,7 +37,20 @@ def get_document(name):
             try:
                 doc = _document_registry.get(".".join(same_inheritance[0]), None)
             except IndexError:
-                doc = None
+                # last ditch attempt - de-normalise the name
+                # mongoengine normalises the name like this:
+                # ''.join('_%s' % c if c.isupper() else c for c in name).strip('_').lower()
+                # We want to reverse it
+                # BilledOrganisation -> billed_organisation -> BilledOrganisation
+
+                # billed_organisation -> ["billed", "organisation"]
+                split = name.split("_")
+
+                # above -> "".join(("B" + "illed"), ("O" + "rganisation"))
+                denormalised = "".join(
+                    i[0].upper() + i[1:] for i in split
+                )
+                doc = _document_registry.get(denormalised, None)
 
     if not doc:
         raise NotRegistered("""
