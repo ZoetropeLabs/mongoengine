@@ -11,7 +11,7 @@ UPDATE_OPERATORS = set(['set', 'unset', 'inc', 'dec', 'pop', 'push',
 _document_registry = {}
 
 
-def get_document(name):
+def get_document(name, recursed=False):
     """Get a document class by name."""
     doc = _document_registry.get(name, None)
     if not doc:
@@ -42,15 +42,19 @@ def get_document(name):
                 # ''.join('_%s' % c if c.isupper() else c for c in name).strip('_').lower()
                 # We want to reverse it
                 # BilledOrganisation -> billed_organisation -> BilledOrganisation
+                if recursed:
+                    doc = None
+                else:
+                    # company -> ["company"]
+                    # billed_organisation -> ["billed", "organisation"]
+                    split = name.split("_")
 
-                # billed_organisation -> ["billed", "organisation"]
-                split = name.split("_")
-
-                # above -> "".join(("B" + "illed"), ("O" + "rganisation"))
-                denormalised = "".join(
-                    i[0].upper() + i[1:] for i in split
-                )
-                doc = _document_registry.get(denormalised, None)
+                    # c ->
+                    # bo -> "".join(("B" + "illed"), ("O" + "rganisation"))
+                    denormalised = "".join(
+                        i[0].upper() + i[1:] for i in split
+                    )
+                    doc = get_document(denormalised, recursed=True)
 
     if not doc:
         raise NotRegistered("""
