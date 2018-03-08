@@ -158,7 +158,8 @@ class DeReference(object):
                         if (collection, dbref) not in object_map]
 
                 if doc_type:
-                    references = doc_type._get_db()[collection].find({'_id': {'$in': refs}})
+                    references = get_db()[collection].find({'_id': {'$in': refs}})
+                    # references = doc_type._get_db()[collection].find({'_id': {'$in': refs}})
                     for ref in references:
                         doc = doc_type._from_son(ref)
                         object_map[(collection, doc.id)] = doc
