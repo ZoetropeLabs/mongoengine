@@ -37,24 +37,24 @@ def get_document(name, recursed=False):
             try:
                 doc = _document_registry.get(".".join(same_inheritance[0]), None)
             except IndexError:
-                # last ditch attempt - de-normalise the name
-                # mongoengine normalises the name like this:
-                # ''.join('_%s' % c if c.isupper() else c for c in name).strip('_').lower()
-                # We want to reverse it
-                # BilledOrganisation -> billed_organisation -> BilledOrganisation
-                if recursed:
-                    doc = None
-                else:
-                    # company -> ["company"]
-                    # billed_organisation -> ["billed", "organisation"]
-                    split = name.split("_")
+                doc = None
+        elif not recursed:
+            # last ditch attempt - de-normalise the name
+            # mongoengine normalises the name like this:
+            # ''.join('_%s' % c if c.isupper() else c for c in name).strip('_').lower()
+            # We want to reverse it
+            # BilledOrganisation -> billed_organisation -> BilledOrganisation
 
-                    # c ->
-                    # bo -> "".join(("B" + "illed"), ("O" + "rganisation"))
-                    denormalised = "".join(
-                        i[0].upper() + i[1:] for i in split
-                    )
-                    doc = get_document(denormalised, recursed=True)
+            # company -> ["company"]
+            # billed_organisation -> ["billed", "organisation"]
+            split = name.split("_")
+
+            # c ->
+            # bo -> "".join(("B" + "illed"), ("O" + "rganisation"))
+            denormalised = "".join(
+                i[0].upper() + i[1:] for i in split
+            )
+            doc = get_document(denormalised, recursed=True)
 
     if not doc:
         raise NotRegistered("""
