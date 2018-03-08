@@ -153,9 +153,7 @@ class DocumentMetaclass(type):
             new_class._collection = None
 
         # Add class to the _document_registry
-        collection = ''.join('_%s' % c if c.isupper() else c for c in name).strip('_').lower()
         _document_registry[new_class._class_name] = new_class
-        _document_registry[collection] = new_class
 
         # In Python 2, User-defined methods objects have special read-only
         # attributes 'im_func' and 'im_self' which contain the function obj
