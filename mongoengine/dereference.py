@@ -161,7 +161,11 @@ class DeReference(object):
                     references = get_db()[collection].find({'_id': {'$in': refs}})
                     # references = doc_type._get_db()[collection].find({'_id': {'$in': refs}})
                     for ref in references:
-                        doc = doc_type._from_son(ref)
+                        try:
+                            doc = doc_type._from_son(ref)
+                        except AttributeError:
+                            kls = get_document(collection)
+                            doc = kls._from_son(ref)
                         object_map[(collection, doc.id)] = doc
                 else:
                     references = get_db()[collection].find({'_id': {'$in': refs}})
